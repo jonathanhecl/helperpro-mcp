@@ -1,0 +1,49 @@
+{
+  "name": "helperpro-mcp",
+  "version": "1.0.0",
+  "description": "A TypeScript implementation of the [Model Context Protocol (MCP)](https://modelcontextprotocol.io/) for code analysis. This server enables LLMs to interact with codebases.",
+  "main": "src/index.js",
+  "bin": {
+    "helperpro-mcp": "./build/index.js"
+  },
+  "scripts": {
+    "build": "tsc && chmod 755 build/index.js",
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "files": [
+    "build"
+  ],
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/jonathanhecl/helperpro-mcp.git"
+  },
+  "keywords": [
+    "mcp",
+    "modelcontextprotocol",
+    "code analysis",
+    "codebase",
+    "llm",
+    "functions",
+    "tools",
+    "resources",
+    "classes"
+  ],
+  "author": "jonathanhecl",
+  "license": "MIT",
+  "type": "module",
+  "bugs": {
+    "url": "https://github.com/jonathanhecl/helperpro-mcp/issues"
+  },
+  "homepage": "https://github.com/jonathanhecl/helperpro-mcp#readme",
+  "dependencies": {
+    "@modelcontextprotocol/sdk": "^1.8.0",
+    "fs-extra": "^11.3.0",
+    "glob": "^11.0.1",
+    "ignore": "^7.0.3"
+  },
+  "devDependencies": {
+    "@types/fs-extra": "^11.0.4",
+    "@types/node": "^22.14.0",
+    "typescript": "^5.8.3"
+  }
+}

@@ -1,4 +1,4 @@
-# HelperPro MCP
+# HelperPro Code Analyzer MCP
 
 A TypeScript implementation of the [Model Context Protocol (MCP)](https://modelcontextprotocol.io/) for code analysis. This server enables LLMs to interact with codebases.
 

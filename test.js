@@ -1,7 +1,8 @@
-// Simple test for function and class extraction
+// Simple test for helperpro-mcp package
 import fs from 'fs-extra';
 import path from 'path';
 import { fileURLToPath } from 'url';
+import { spawn } from 'child_process';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 
@@ -285,5 +286,99 @@ async function runTest() {
   console.log(`Total de clases: ${allClasses.length}`);
 }
 
-// Run the test
+// Test MCP server directly
+async function testMcpServer() {
+  console.log('\n=== TESTING MCP SERVER ===');
+  
+  // Start the MCP server process
+  console.log('Starting MCP server...');
+  const mcpProcess = spawn('node', ['build/index.js'], {
+    stdio: ['pipe', 'pipe', process.stderr]
+  });
+  
+  // Function to send a request to the MCP server
+  function sendRequest(request) {
+    return new Promise((resolve) => {
+      // Set up response handling
+      const responseChunks = [];
+      mcpProcess.stdout.on('data', (chunk) => {
+        const data = chunk.toString();
+        responseChunks.push(data);
+        
+        // Check if we have a complete response
+        const combinedResponse = responseChunks.join('');
+        if (combinedResponse.includes('"jsonrpc":"2.0"') && 
+            combinedResponse.includes('"id":') && 
+            (combinedResponse.includes('"result":') || combinedResponse.includes('"error":'))) {
+          try {
+            const response = JSON.parse(combinedResponse);
+            resolve(response);
+          } catch (e) {
+            console.error('Error parsing response:', e);
+            console.error('Response was:', combinedResponse);
+            resolve({ error: { message: 'Error parsing response' } });
+          }
+        }
+      });
+
+      // Send the request
+      mcpProcess.stdin.write(JSON.stringify(request) + '\n');
+    });
+  }
+  
+  // Test get_functions
+  console.log('\nTesting get_functions tool...');
+  const getFunctionsRequest = {
+    jsonrpc: '2.0',
+    id: 1,
+    method: 'tool',
+    params: {
+      name: 'get_functions',
+      parameters: {
+        path: testDir,
+        maxDepth: 2
+      }
+    }
+  };
+  
+  const functionsResponse = await sendRequest(getFunctionsRequest);
+  if (functionsResponse.result && functionsResponse.result.content && functionsResponse.result.content[0]) {
+    console.log('get_functions tool works! ✅');
+  } else {
+    console.log('get_functions tool failed! ❌');
+    console.log(functionsResponse);
+  }
+  
+  // Test get_classes
+  console.log('\nTesting get_classes tool...');
+  const getClassesRequest = {
+    jsonrpc: '2.0',
+    id: 2,
+    method: 'tool',
+    params: {
+      name: 'get_classes',
+      parameters: {
+        path: testDir,
+        maxDepth: 2
+      }
+    }
+  };
+  
+  const classesResponse = await sendRequest(getClassesRequest);
+  if (classesResponse.result && classesResponse.result.content && classesResponse.result.content[0]) {
+    console.log('get_classes tool works! ✅');
+  } else {
+    console.log('get_classes tool failed! ❌');
+    console.log(classesResponse);
+  }
+  
+  // Clean up
+  mcpProcess.stdin.end();
+  setTimeout(() => {
+    console.log('\nTests completed!');
+    process.exit(0);
+  }, 500);
+}
+
+// Solo ejecutamos la prueba de extracción
 runTest().catch(console.error);

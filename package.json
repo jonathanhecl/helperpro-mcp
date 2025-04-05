@@ -1,17 +1,22 @@
 {
   "name": "@gshaxor/helperpro-mcp",
-  "version": "1.0.1",
+  "version": "1.2.0",
   "description": "A TypeScript implementation of the [Model Context Protocol (MCP)](https://modelcontextprotocol.io/) for code analysis. This server enables LLMs to interact with codebases.",
-  "main": "src/index.js",
   "bin": {
-    "helperpro-mcp": "./build/index.js"
+    "mcp-helperpro": "build/index.js"
+  },
+  "main": "build/index.js",
+  "exports": {
+    ".": "./build/index.js",
+    "./utils": "./build/utils.js"
   },
   "publishConfig": {
     "access": "public"
   },
   "scripts": {
-    "build": "tsc && chmod 755 build/index.js",
-    "test": "node test.js"
+    "build": "node build-script.js",
+    "prepare": "npm run build",
+    "start": "node src/index.js"
   },
   "files": [
     "build"

@@ -1,27 +1,15 @@
-import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
-import { StdioServerTransport } from "@modelcontextprotocol/sdk/server/stdio.js";
-import { z } from "zod";
 import fs from 'fs-extra';
 import path from 'path';
 import { glob } from 'glob';
 import ignore from 'ignore';
-
-// Type declarations for modules without types
-declare module 'ignore';
-
-// Create an MCP server
-const server = new McpServer({
-  name: "HelperPro Code Analyzer",
-  version: "1.0.0"
-});
 
 /**
  * Read .gitignore file and create an ignore filter
  * @param {string} basePath - Base path to look for .gitignore
  * @returns {Promise<string[]>} - List of patterns that should be ignored
  */
-async function createIgnoreFilter(basePath: string): Promise<string[]> {
-  const ignoredPatterns: string[] = [];
+export async function createIgnoreFilter(basePath) {
+  const ignoredPatterns = [];
   const gitignorePath = path.join(basePath, '.gitignore');
   
   try {
@@ -35,17 +23,11 @@ async function createIgnoreFilter(basePath: string): Promise<string[]> {
       
       ignoredPatterns.push(...patterns);
     }
-  } catch (error: any) {
+  } catch (error) {
     console.error(`Error reading .gitignore: ${error.message}`);
   }
   
   return ignoredPatterns;
-}
-
-interface FunctionInfo {
-  function: string;
-  line: number;
-  file: string;
 }
 
 /**
@@ -54,11 +36,11 @@ interface FunctionInfo {
  * @param {string} basePath - Base path for relative path calculation
  * @returns {Promise<FunctionInfo[]>} - Array of function information
  */
-async function extractFunctions(filePath: string, basePath: string): Promise<FunctionInfo[]> {
+export async function extractFunctions(filePath, basePath) {
   const content = await fs.readFile(filePath, 'utf8');
   const lines = content.split('\n');
-  const results: FunctionInfo[] = [];
-  const foundFunctions = new Set<string>(); // To avoid duplicates in the same file
+  const results = [];
+  const foundFunctions = new Set(); // To avoid duplicates in the same file
   
   // Regular expressions for different function patterns
   const patterns = [
@@ -114,32 +96,26 @@ async function extractFunctions(filePath: string, basePath: string): Promise<Fun
   return results;
 }
 
-interface ClassInfo {
-  class: string;
-  line: number;
-  file: string;
-}
-
 /**
  * Extract classes from a file
  * @param {string} filePath - Path to the file
  * @param {string} basePath - Base path for relative path calculation
  * @returns {Promise<ClassInfo[]>} - Array of class information
  */
-async function extractClasses(filePath: string, basePath: string): Promise<ClassInfo[]> {
+export async function extractClasses(filePath, basePath) {
   const content = await fs.readFile(filePath, 'utf8');
   const lines = content.split('\n');
-  const results: ClassInfo[] = [];
-  const foundClasses = new Set<string>(); // To avoid duplicates in the same file
+  const results = [];
+  const foundClasses = new Set(); // To avoid duplicates in the same file
   
   // Regular expressions for different class patterns
   const patterns = [
     // JavaScript/TypeScript classes
     { regex: /^\s*(?:export\s+)?class\s+(\w+)/, nameGroup: 1 },
-    // Python classes
-    { regex: /^\s*class\s+(\w+)/, nameGroup: 1 },
     // Java/C#/C++ classes
     { regex: /^\s*(?:public|private|protected)?\s*class\s+(\w+)/, nameGroup: 1 },
+    // Python classes
+    { regex: /^\s*class\s+(\w+)/, nameGroup: 1 },
     // PHP classes
     { regex: /^\s*class\s+(\w+)/, nameGroup: 1 }
   ];
@@ -179,7 +155,7 @@ async function extractClasses(filePath: string, basePath: string): Promise<Class
  * @param {string[]} ignoredPatterns - List of patterns that should be ignored
  * @returns {Promise<string[]>} - Array of file paths
  */
-async function getFilesRecursively(absolutePath: string, maxDepth: number, ignoredPatterns: string[]): Promise<string[]> {
+export async function getFilesRecursively(absolutePath, maxDepth, ignoredPatterns) {
   // Ensure the path exists
   if (!await fs.pathExists(absolutePath)) {
     console.error(`Path does not exist: ${absolutePath}`);
@@ -218,105 +194,10 @@ async function getFilesRecursively(absolutePath: string, maxDepth: number, ignor
     // Filter files based on .gitignore patterns
     return allFiles.filter(file => {
       const relativePath = path.relative(absolutePath, file).replace(/\\/g, '/');
-    return !ignoreFilter.ignores(relativePath);
-  });
+      return !ignoreFilter.ignores(relativePath);
+    });
   } catch (error) {
     console.error(`Error in glob: ${error}`);
     return [];
   }
 }
-
-// Add get_functions tool
-server.tool(
-  "get_functions",
-  "Get all functions in a directory",
-  { 
-    path: z.string(),
-    maxDepth: z.number().optional().default(4)
-  },
-  async ({ path: dirPath, maxDepth }) => {
-    try {
-      // console.log('get_functions tool called with parameters:', { path: dirPath, maxDepth });
-
-      // Normalize and resolve the path
-      const absolutePath = path.resolve(dirPath);
-
-      
-      // Get patterns to ignore from .gitignore
-      const ignoredPatterns = await createIgnoreFilter(absolutePath);
-      
-      // Get all files
-      const files = await getFilesRecursively(absolutePath, maxDepth, ignoredPatterns);
-      
-      // Extract functions from all files
-      let allFunctions: FunctionInfo[] = [];
-      for (const file of files) {
-        const functions = await extractFunctions(file, absolutePath);
-        allFunctions = [...allFunctions, ...functions];
-      }
-      
-      return {
-        content: [{ 
-          type: "text", 
-          text: JSON.stringify(allFunctions, null, 2)
-        }]
-      };
-    } catch (error: any) {
-      return {
-        content: [{ 
-          type: "text", 
-          text: JSON.stringify({ error: error.message }, null, 2)
-        }]
-      };
-    }
-  }
-);
-
-// Add get_classes tool
-server.tool(
-  "get_classes",
-  "Get all classes in a directory",
-  { 
-    path: z.string(),
-    maxDepth: z.number().optional().default(4)
-  },
-  async ({ path: dirPath, maxDepth }) => {
-    try {
-      // console.log('get_classes tool called with parameters:', { path: dirPath, maxDepth });
-      
-      // Normalize and resolve the path
-      const absolutePath = path.resolve(dirPath);
-      
-      // Get patterns to ignore from .gitignore
-      const ignoredPatterns = await createIgnoreFilter(absolutePath);
-      
-      // Get all files
-      const files = await getFilesRecursively(absolutePath, maxDepth, ignoredPatterns);
-      
-      // Extract classes from all files
-      let allClasses: ClassInfo[] = [];
-      for (const file of files) {
-        const classes = await extractClasses(file, absolutePath);
-        allClasses = [...allClasses, ...classes];
-      }
-      
-      return {
-        content: [{ 
-          type: "text", 
-          text: JSON.stringify(allClasses, null, 2)
-        }]
-      };
-    } catch (error: any) {
-      return {
-        content: [{ 
-          type: "text", 
-          text: JSON.stringify({ error: error.message }, null, 2)
-        }]
-      };
-    }
-  }
-);
-
-// Start receiving messages on stdin and sending messages on stdout
-const transport = new StdioServerTransport();
-await server.connect(transport);

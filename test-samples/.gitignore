@@ -1,0 +1,7 @@
+
+# Test gitignore file
+node_modules/
+*.log
+.DS_Store
+.env
+  

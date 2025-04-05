@@ -13,24 +13,26 @@ const server = new McpServer({
 /**
  * Read .gitignore file and create an ignore filter
  * @param {string} basePath - Base path to look for .gitignore
- * @returns {Promise<Function>} - Function that checks if a path should be ignored
+ * @returns {Promise<string[]>} - List of patterns that should be ignored
  */
 async function createIgnoreFilter(basePath) {
-    const ignoreFilter = ignore();
+    const ignoredPatterns = [];
     const gitignorePath = path.join(basePath, '.gitignore');
     try {
         if (await fs.pathExists(gitignorePath)) {
             const gitignoreContent = await fs.readFile(gitignorePath, 'utf8');
-            ignoreFilter.add(gitignoreContent);
+            // Parse the .gitignore content and extract patterns
+            const patterns = gitignoreContent
+                .split('\n')
+                .map(line => line.trim())
+                .filter(line => line && !line.startsWith('#'));
+            ignoredPatterns.push(...patterns);
         }
     }
     catch (error) {
         console.error(`Error reading .gitignore: ${error.message}`);
     }
-    return (filePath) => {
-        const relativePath = path.relative(basePath, filePath);
-        return !ignoreFilter.ignores(relativePath.replace(/\\/g, '/'));
-    };
+    return ignoredPatterns;
 }
 /**
  * Extract functions from a file
@@ -135,16 +137,48 @@ async function extractClasses(filePath, basePath) {
  * Get all files in a directory recursively, respecting .gitignore
  * @param {string} dirPath - Directory path to search
  * @param {number} maxDepth - Maximum directory depth to search
- * @param {Function} shouldInclude - Function to check if a file should be included
+ * @param {string[]} ignoredPatterns - List of patterns that should be ignored
  * @returns {Promise<string[]>} - Array of file paths
  */
-async function getFilesRecursively(dirPath, maxDepth, shouldInclude) {
-    const absolutePath = path.resolve(dirPath);
-    // Use glob to get all files with depth control
-    const globPattern = path.join(absolutePath, `${"**/".repeat(maxDepth)}*`);
-    const allFiles = await glob(globPattern, { nodir: true, dot: true });
-    // Filter files based on .gitignore
-    return allFiles.filter(shouldInclude);
+async function getFilesRecursively(absolutePath, maxDepth, ignoredPatterns) {
+    // Ensure the path exists
+    if (!await fs.pathExists(absolutePath)) {
+        console.error(`Path does not exist: ${absolutePath}`);
+        return [];
+    }
+    // Create a simpler glob pattern that uses forward slashes
+    let globPattern = absolutePath.replace(/\\/g, '/'); // Convert to forward slashes
+    if (!globPattern.endsWith('/')) {
+        globPattern += '/';
+    }
+    globPattern += '**'; // Match all files and directories recursively
+    console.error(`Using glob pattern: ${globPattern}`);
+    try {
+        // Use glob with more explicit options
+        const allFiles = await glob(globPattern, {
+            nodir: true, // Only return files, not directories
+            dot: true, // Include dotfiles
+            absolute: true, // Return absolute paths
+            follow: true // Follow symlinks
+        });
+        console.error(`Found ${allFiles.length} files with glob`);
+        // Log some of the files for debugging
+        if (allFiles.length > 0) {
+            console.error('First few files:');
+            allFiles.slice(0, 5).forEach(file => console.error(` - ${file}`));
+        }
+        // Create an ignore filter using the patterns
+        const ignoreFilter = ignore().add(ignoredPatterns);
+        // Filter files based on .gitignore patterns
+        return allFiles.filter(file => {
+            const relativePath = path.relative(absolutePath, file).replace(/\\/g, '/');
+            return !ignoreFilter.ignores(relativePath);
+        });
+    }
+    catch (error) {
+        console.error(`Error in glob: ${error}`);
+        return [];
+    }
 }
 // Add get_functions tool
 server.tool("get_functions", "Get all functions in a directory", {
@@ -152,12 +186,19 @@ server.tool("get_functions", "Get all functions in a directory", {
     maxDepth: z.number().optional().default(4)
 }, async ({ path: dirPath, maxDepth }) => {
     try {
+        // console.log('get_functions tool called with parameters:', { path: dirPath, maxDepth });
         // Normalize and resolve the path
         const absolutePath = path.resolve(dirPath);
-        // Create ignore filter from .gitignore
-        const shouldInclude = await createIgnoreFilter(absolutePath);
+        // Get patterns to ignore from .gitignore
+        const ignoredPatterns = await createIgnoreFilter(absolutePath);
         // Get all files
-        const files = await getFilesRecursively(absolutePath, maxDepth, shouldInclude);
+        const files = await getFilesRecursively(absolutePath, maxDepth, ignoredPatterns);
+        return {
+            content: [{
+                    type: "text",
+                    text: JSON.stringify(files, null, 2)
+                }]
+        };
         // Extract functions from all files
         let allFunctions = [];
         for (const file of files) {
@@ -186,12 +227,13 @@ server.tool("get_classes", "Get all classes in a directory", {
     maxDepth: z.number().optional().default(4)
 }, async ({ path: dirPath, maxDepth }) => {
     try {
+        // console.log('get_classes tool called with parameters:', { path: dirPath, maxDepth });
         // Normalize and resolve the path
         const absolutePath = path.resolve(dirPath);
-        // Create ignore filter from .gitignore
-        const shouldInclude = await createIgnoreFilter(absolutePath);
+        // Get patterns to ignore from .gitignore
+        const ignoredPatterns = await createIgnoreFilter(absolutePath);
         // Get all files
-        const files = await getFilesRecursively(absolutePath, maxDepth, shouldInclude);
+        const files = await getFilesRecursively(absolutePath, maxDepth, ignoredPatterns);
         // Extract classes from all files
         let allClasses = [];
         for (const file of files) {
@@ -216,12 +258,4 @@ server.tool("get_classes", "Get all classes in a directory", {
 });
 // Start receiving messages on stdin and sending messages on stdout
 const transport = new StdioServerTransport();
-// Log when server is ready
-console.error('MCP Server starting...');
-server.connect(transport).then(() => {
-    console.error('MCP Server ready - registered tools:');
-    console.error(` - get_functions`);
-    console.error(` - get_classes`);
-}).catch(error => {
-    console.error('Error starting MCP server:', error);
-});
+await server.connect(transport);

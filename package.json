@@ -1,6 +1,6 @@
 {
   "name": "@gshaxor/helperpro-mcp",
-  "version": "1.0.0",
+  "version": "1.0.1",
   "description": "A TypeScript implementation of the [Model Context Protocol (MCP)](https://modelcontextprotocol.io/) for code analysis. This server enables LLMs to interact with codebases.",
   "main": "src/index.js",
   "bin": {

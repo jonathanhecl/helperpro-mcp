@@ -193,12 +193,6 @@ server.tool("get_functions", "Get all functions in a directory", {
         const ignoredPatterns = await createIgnoreFilter(absolutePath);
         // Get all files
         const files = await getFilesRecursively(absolutePath, maxDepth, ignoredPatterns);
-        return {
-            content: [{
-                    type: "text",
-                    text: JSON.stringify(files, null, 2)
-                }]
-        };
         // Extract functions from all files
         let allFunctions = [];
         for (const file of files) {

@@ -216,4 +216,12 @@ server.tool("get_classes", "Get all classes in a directory", {
 });
 // Start receiving messages on stdin and sending messages on stdout
 const transport = new StdioServerTransport();
-server.connect(transport).catch(console.error);
+// Log when server is ready
+console.error('MCP Server starting...');
+server.connect(transport).then(() => {
+    console.error('MCP Server ready - registered tools:');
+    console.error(` - get_functions`);
+    console.error(` - get_classes`);
+}).catch(error => {
+    console.error('Error starting MCP server:', error);
+});

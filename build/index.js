@@ -16,7 +16,7 @@ import {
 // Create an MCP server
 const server = new Server({
   name: "HelperPro Code Analyzer",
-  version: "1.2.1",
+  version: "1.2.2",
 }, {
   capabilities: {
     resources: {},
@@ -28,7 +28,7 @@ const server = new Server({
 const TOOLS = [
   {
     name: "get_functions",
-    description: "Get all functions in a directory. Returns an array of objects with function name, line number, and file path.",
+    description: "Get all functions in a directory. Returns an list of function names, file paths, and line numbers.",
     inputSchema: {
       type: "object",
       properties: {
@@ -40,7 +40,7 @@ const TOOLS = [
   },
   {
     name: "get_classes",
-    description: "Get all classes in a directory. Returns an array of objects with class name, line number, and file path.",
+    description: "Get all classes in a directory. Returns an list of class names, file paths, and line numbers.",
     inputSchema: {
       type: "object",
       properties: {
@@ -78,10 +78,15 @@ async function handleToolCall(name, args) {
           allFunctions = [...allFunctions, ...functions];
         }
         
+        // Convert to text format
+        const textOutput = allFunctions
+          .map(f => `${f.function}; ${f.file}:${f.line}`)
+          .join('\n');
+
         return {
           content: [{ 
             type: "text", 
-            text: JSON.stringify(allFunctions, null, 2)
+            text: textOutput
           }]
         };
       } catch (error) {
@@ -111,10 +116,15 @@ async function handleToolCall(name, args) {
           allClasses = [...allClasses, ...classes];
         }
         
+        // Convert to text format
+        const textOutput = allClasses
+          .map(c => `${c.class}; ${c.file}:${c.line}`)
+          .join('\n');
+
         return {
           content: [{ 
             type: "text", 
-            text: JSON.stringify(allClasses, null, 2)
+            text: textOutput
           }]
         };
       } catch (error) {

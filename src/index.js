@@ -2,7 +2,7 @@
 
 import { Server } from "@modelcontextprotocol/sdk/server/index.js";
 import { StdioServerTransport } from "@modelcontextprotocol/sdk/server/stdio.js";
-import { CallToolRequestSchema, ListToolsRequestSchema } from "@modelcontextprotocol/sdk/types.js";
+import { ReadResourceRequestSchema, ListResourcesRequestSchema, ListToolsRequestSchema, CallToolRequestSchema } from "@modelcontextprotocol/sdk/types.js";
 import path from 'path';
 
 // Import utility functions
@@ -24,8 +24,8 @@ const server = new Server({
   },
 });
 
-// Define available tools
-const TOOLS = [
+// Define available resources
+const RESOURCES = [
   {
     name: "get_functions",
     description: "Get all functions in a directory. Returns an list of function names, file paths, and line numbers.",
@@ -51,6 +51,8 @@ const TOOLS = [
     },
   },
 ];
+
+const TOOLS = RESOURCES;
 
 /**
  * Handle tool calls from the MCP client
@@ -147,11 +149,19 @@ async function handleToolCall(name, args) {
 }
 
 // Register request handlers
+server.setRequestHandler(ListResourcesRequestSchema, async () => ({
+  resources: RESOURCES,
+}));
+
+server.setRequestHandler(ReadResourceRequestSchema, async (request) => 
+  handleToolCall(request.params.name, request.params.arguments ?? {})
+);
+
 server.setRequestHandler(ListToolsRequestSchema, async () => ({
   tools: TOOLS,
 }));
 
-server.setRequestHandler(CallToolRequestSchema, async (request) => 
+server.setRequestHandler(CallToolRequestSchema, async (request) =>
   handleToolCall(request.params.name, request.params.arguments ?? {})
 );
 

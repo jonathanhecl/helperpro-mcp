@@ -16,7 +16,7 @@ import {
 // Create an MCP server
 const server = new Server({
   name: "HelperPro Code Analyzer",
-  version: "1.2.2",
+  version: "1.2.3",
 }, {
   capabilities: {
     resources: {},
